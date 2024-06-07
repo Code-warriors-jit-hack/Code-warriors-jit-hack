@@ -1,0 +1,131 @@
+from ctypes import cast, POINTER
+from comtypes import CLSCTX_ALL
+from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
+import tkinter as tk
+from tkinter import Scale
+import pygame
+import pyaudio
+import numpy as np
+import scipy.signal as signal
+from gtts import gTTS
+import os
+
+HEIGHT = 720
+WIDTH = 1280
+
+pygame.mixer.init()
+
+def text_to_speech(text):
+    speech = gTTS(text)
+    speech.save("output.mp3")
+    print("Speech saved as output.mp3")
+
+def play_audio(file_path):
+    if os.path.exists(file_path):
+        os.system(f"start {file_path}")
+    else:
+        print(f"File not found: {file_path}")
+
+def change_volume(volume):
+    devices = AudioUtilities.GetSpeakers()
+    interface = devices.Activate(IAudioEndpointVolume.iid, CLSCTX_ALL, None)
+    audio_volume = cast(interface, POINTER(IAudioEndpointVolume))
+    audio_volume.SetMasterVolumeLevelScalar(volume, None)
+
+def process_audio(data):
+    audio_data = np.frombuffer(data, dtype=np.int16)
+    b, a = signal.butter(3, [50, 600], btype='band', fs=12000)
+    filtered_data = signal.lfilter(b, a, audio_data)
+    peaks, _ = signal.find_peaks(filtered_data, height=1000)
+    estimated_distance = estimate_distance_from_features(filtered_data, peaks)
+    return estimated_distance
+
+def estimate_distance_from_features(audio_data, peaks):
+      distance = len(peaks) * 0.1
+      return distance
+
+def start_distance_calculation():
+        p = pyaudio.PyAudio()
+        stream = p.open(format=pyaudio.paInt16, channels=1, rate=48000, input=True, frames_per_buffer=10248)
+        a = 0  # Initialize the counter
+        try:
+            while a < 20:
+                data = stream.read(10248)
+                distance = process_audio(data) + 4
+                print(f"Estimated Distance: {1 / (distance * 0.1)} meters")
+                igt = 1 / (distance * 0.1)
+                a=a+1
+                text_to_speech(str(igt))
+                if _name_ == "_main_":
+                    file_path = "output.mp3"
+                    play_audio(file_path)
+
+
+        finally:
+            stream.stop_stream()
+            stream.close()
+            p.terminate()
+
+
+
+def stop_distance_calculation():
+    pass
+
+def distance_calculator():
+    start_distance_calculation()
+
+def change_options():
+    root = tk.Toplevel()
+    root.title("Change Volume")
+
+    slider = Scale(root, from_=0, to=100, orient='horizontal', label='Volume', command=change_volume)
+    slider.pack()
+
+    def print_values():
+        print("Slider value:", slider.get())
+
+    print_button = tk.Button(root, text="Print Slider Value", command=print_values)
+    print_button.pack()
+    change_volume(slider.get())
+
+def audio():
+   try:
+    pygame.mixer.music.load('C:/Users/Hp/Documents/Sound recordings/Recording.m4a')
+    pygame.mixer.music.play()
+    print('Audio playing')
+   except pygame.error as e:
+       print("Error loading audio:", e)
+
+class ImageButton(tk.Button):
+    def _init_(self, parent, image_path, command, **kwargs):
+        self.image = tk.PhotoImage(file=image_path)
+        super()._init_(parent, image=self.image, command=command, **kwargs)
+
+root = tk.Tk()
+
+canvas = tk.Canvas(root, height=HEIGHT, width=WIDTH)
+canvas.pack()
+
+bg_img = tk.PhotoImage(file='q.png')
+bg_label = tk.Label(root, image=bg_img)
+bg_label.place(relwidth=1, relheight=1)
+
+frame = tk.Frame(root, bg='#000000', bd=5)
+frame.place(relx=0.5, rely=0.1, relwidth=0.2, relheight=0.1, anchor='n')
+
+button = tk.Button(frame, text="Options", font=('Arial', 14), command=change_options)
+button.place(relx=0, relheight=1, relwidth=1)
+
+lwr_frame = tk.Frame(root, bg='#000000', bd=10)
+lwr_frame.place(relx=0.5, rely=0.25, relwidth=0.75, relheight=0.6, anchor='n')
+
+label = tk.Label(lwr_frame)
+label.place(relwidth=1, relheight=1)
+
+inr_frame = tk.Frame(root, bg='#FFFFFF', bd=6)
+inr_frame.place(relx=0.276, rely=0.334, relwidth=0.2, relheight=0.3, anchor='n')
+
+play_button = ImageButton(inr_frame, image_path='Play.png', command=distance_calculator)
+play_button.place(relwidth=1, relheight=1)
+
+root.mainloop()
